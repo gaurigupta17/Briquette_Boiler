@@ -54,8 +54,8 @@ if fuel_file and param_file:
         'BoilerOnOffStatus': 'Boiler_Status'
     }, inplace=True)
 
-    # Convert Timestamp and Date
-    fuel_df['Date'] = pd.to_datetime(fuel_df['Date'])
+    # Convert both Dates to same type (date object only)
+    fuel_df['Date'] = pd.to_datetime(fuel_df['Date']).dt.date
     param_df['Date'] = pd.to_datetime(param_df['Timestamp']).dt.date
 
     # Calculate Boiler Efficiency
@@ -68,7 +68,7 @@ if fuel_file and param_file:
 
     # Merge
     merged_df = pd.merge(param_df, fuel_df[['Date', 'Boiler_Efficiency', 'Efficiency_Bucket']],
-                         how='left', left_on='Date', right_on='Date')
+                         how='left', on='Date')
 
     # Display Data
     st.subheader("Fuel Data Preview")
