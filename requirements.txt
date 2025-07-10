@@ -4,4 +4,4 @@ matplotlib
 seaborn
 openpyxl
 reportlab
-sklearn
+scikit-learn
