@@ -46,6 +46,8 @@ p_f = st.sidebar.file_uploader("Param Data", type="xlsx")
 if f_f and p_f:
     fuel = pd.read_excel(f_f)
     param = pd.read_excel(p_f)
+    fuel['Boiler_Efficiency'] = (fuel['Steam_Generated_MT'] / fuel['Fuel_Consumed_MT']) * 17.5
+
     # rename, parse dates, compute efficiency, buckets ...
     # (As before; skipping for brevity)
     # Ensure columns present: 'Flue_Gas_Temp', 'O2_Analyser', 'NOx'
