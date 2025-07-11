@@ -5,3 +5,4 @@ seaborn
 openpyxl
 reportlab
 scikit-learn
+fpdf
