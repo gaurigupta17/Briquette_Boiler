@@ -4,12 +4,35 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from io import BytesIO
+from fpdf import FPDF
 
 # Utility to convert plot to download button
 def fig_to_download(fig, filename):
     buf = BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight")
     st.download_button("⬇️ Download Plot", buf.getvalue(), file_name=filename, mime="image/png")
+
+def generate_pdf_report(df_summary):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="Boiler Report Summary", ln=True, align='C')
+    
+    for i, row in df_summary.iterrows():
+        for col in df_summary.columns:
+            line = f"{col}: {row[col]}"
+            pdf.cell(200, 10, txt=line, ln=True)
+        pdf.cell(200, 5, txt="---", ln=True)
+    
+    pdf_output = BytesIO()
+    pdf.output(pdf_output)
+    pdf_output.seek(0)
+    return pdf_output
+
+summary_df = fuel_df[['Date', 'Boiler_Efficiency', 'Efficiency_Level']]
+pdf_file = generate_pdf_report(summary_df)
+st.download_button("⬇️ Download PDF Report", data=pdf_file, file_name="boiler_summary.pdf", mime="application/pdf")
+
 
 # Streamlit config
 st.set_page_config(page_title="Boiler Dashboard", layout="wide")
@@ -62,6 +85,9 @@ if fuel_file and param_file:
 
     fuel_df['Date'] = pd.to_datetime(fuel_df['Date']).dt.date
     param_df['Date'] = pd.to_datetime(param_df['Timestamp']).dt.date
+    param_df['Timestamp'] = pd.to_datetime(param_df['Timestamp'])
+    param_df = param_df[param_df['Timestamp'].dt.time.between(pd.to_datetime("07:00:00").time(), pd.to_datetime("19:00:00").time())]
+
     fuel_df['Boiler_Efficiency'] = (fuel_df['Steam_Generated_MT'] / fuel_df['Fuel_Consumed_MT']) * 17.5
 
     # Boxplot with Quartiles (All Days)
@@ -71,7 +97,7 @@ if fuel_file and param_file:
     efficiency_data = fuel_df['Boiler_Efficiency'].dropna().values
 
     q1 = np.percentile(efficiency_data, 25)
-    q2 = np.percentile(efficiency_data, 50)
+
     q3 = np.percentile(efficiency_data, 75)
 
     fig6, ax7 = plt.subplots(figsize=(6, 4))
@@ -79,7 +105,7 @@ if fuel_file and param_file:
     
     # Annotate Quartiles
     ax7.scatter(0, q1, color='blue', label=f"Q1: {q1:.2f}", zorder=5)
-    ax7.scatter(0, q2, color='green', label=f"Median (Q2): {q2:.2f}", zorder=5)
+    
     ax7.scatter(0, q3, color='red', label=f"Q3: {q3:.2f}", zorder=5)
     ax7.legend(loc='upper right')
     ax7.set_ylabel("Boiler Efficiency (%)")
@@ -87,15 +113,42 @@ if fuel_file and param_file:
     
     st.pyplot(fig6)
     fig_to_download(fig6, "boiler_efficiency_boxplot_quartiles.png")
+    
+    def categorize_efficiency(eff):
+    if eff < q1:
+        return "Low"
+    elif eff <= q3:
+        return "Medium"
+    else:
+        return "High"
 
-    # Define custom efficiency buckets based on quartiles
-    quartile_bins = [0, q1, q2, q3, float('inf')]
-    quartile_labels = [f'Q1', f'Q2', f'Q3', f'Q4']
-    fuel_df['Efficiency_Bucket'] = pd.cut(fuel_df['Boiler_Efficiency'], bins=quartile_bins, labels=quartile_labels, include_lowest=True)
+    fuel_df['Efficiency_Level'] = fuel_df['Boiler_Efficiency'].apply(categorize_efficiency)
 
+    color_map = {"Low": "red", "Medium": "orange", "High": "green"}
+    colors = fuel_df['Efficiency_Level'].map(color_map)
+    
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.bar(fuel_df['Date'].astype(str), fuel_df['Boiler_Efficiency'], color=colors)
+    ax.set_title("Daily Efficiency Status by Bucket")
+    ax.set_ylabel("Efficiency (%)")
+    ax.tick_params(axis='x', rotation=45)
+    st.pyplot(fig)
+    fig_to_download(fig, "daily_efficiency_status.png")
 
-    merged_df = pd.merge(param_df, fuel_df[['Date', 'Boiler_Efficiency', 'Efficiency_Bucket']], on='Date', how='left')
+    merged_df = pd.merge(param_df, fuel_df[['Date', 'Efficiency_Level']], on='Date', how='left')
 
+    numeric_columns = merged_df.select_dtypes(include=[np.number]).columns.difference(['Date'])
+    
+    for col in numeric_columns:
+        fig, ax = plt.subplots(figsize=(6, 4))
+        sns.boxplot(x='Efficiency_Level', y=col, data=merged_df, palette=color_map)
+        ax.set_title(f"{col} by Efficiency Level")
+        st.pyplot(fig)
+        fig_to_download(fig, f"{col}_boxplot.png")
+    
+        
+
+ 
     # Fuel Table
     st.subheader("📘 Fuel & Parameter Data Preview")
     st.markdown("This table shows all values of steam generation and fuel consumed, day-wise.")
