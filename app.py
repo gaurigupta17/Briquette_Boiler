@@ -12,26 +12,6 @@ def fig_to_download(fig, filename):
     fig.savefig(buf, format="png", bbox_inches="tight")
     st.download_button("⬇️ Download Plot", buf.getvalue(), file_name=filename, mime="image/png")
 
-def generate_pdf_report(df_summary):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="Boiler Report Summary", ln=True, align='C')
-    
-    for i, row in df_summary.iterrows():
-        for col in df_summary.columns:
-            line = f"{col}: {row[col]}"
-            pdf.cell(200, 10, txt=line, ln=True)
-        pdf.cell(200, 5, txt="---", ln=True)
-    
-    pdf_output = BytesIO()
-    pdf.output(pdf_output)
-    pdf_output.seek(0)
-    return pdf_output
-
-summary_df = fuel_df[['Date', 'Boiler_Efficiency', 'Efficiency_Level']]
-pdf_file = generate_pdf_report(summary_df)
-st.download_button("⬇️ Download PDF Report", data=pdf_file, file_name="boiler_summary.pdf", mime="application/pdf")
 
 
 # Streamlit config
