@@ -64,9 +64,35 @@ if fuel_file and param_file:
     param_df['Date'] = pd.to_datetime(param_df['Timestamp']).dt.date
     fuel_df['Boiler_Efficiency'] = (fuel_df['Steam_Generated_MT'] / fuel_df['Fuel_Consumed_MT']) * 17.5
 
-    bins = [0, 70, 72, 75, float('inf')]
-    labels = ['<70%', '70–72%', '72–75%', '>75%']
-    fuel_df['Efficiency_Bucket'] = pd.cut(fuel_df['Boiler_Efficiency'], bins=bins, labels=labels)
+    # Boxplot with Quartiles (All Days)
+    st.subheader("📦 Boiler Efficiency Distribution")
+    st.markdown("This boxplot shows how boiler efficiency is distributed across all available days, along with quartiles.")
+
+    efficiency_data = fuel_df['Boiler_Efficiency'].dropna().values
+
+    q1 = np.percentile(efficiency_data, 25)
+    q2 = np.percentile(efficiency_data, 50)
+    q3 = np.percentile(efficiency_data, 75)
+
+    fig6, ax7 = plt.subplots(figsize=(6, 4))
+    sns.boxplot(y=efficiency_data, color='lightblue', ax=ax7)
+    
+    # Annotate Quartiles
+    ax7.scatter(0, q1, color='blue', label=f"Q1: {q1:.2f}", zorder=5)
+    ax7.scatter(0, q2, color='green', label=f"Median (Q2): {q2:.2f}", zorder=5)
+    ax7.scatter(0, q3, color='red', label=f"Q3: {q3:.2f}", zorder=5)
+    ax7.legend(loc='upper right')
+    ax7.set_ylabel("Boiler Efficiency (%)")
+    ax7.set_xticks([])
+    
+    st.pyplot(fig6)
+    fig_to_download(fig6, "boiler_efficiency_boxplot_quartiles.png")
+
+    # Define custom efficiency buckets based on quartiles
+    quartile_bins = [0, q1, q2, q3, float('inf')]
+    quartile_labels = [f'Q1 (≤{q1:.2f})', f'Q2 ({q1:.2f}-{q2:.2f})', f'Q3 ({q2:.2f}-{q3:.2f})', f'Q4 (>{q3:.2f})']
+    fuel_df['Efficiency_Bucket'] = pd.cut(fuel_df['Boiler_Efficiency'], bins=quartile_bins, labels=quartile_labels, include_lowest=True)
+
 
     merged_df = pd.merge(param_df, fuel_df[['Date', 'Boiler_Efficiency', 'Efficiency_Bucket']], on='Date', how='left')
 
@@ -95,29 +121,7 @@ if fuel_file and param_file:
     st.pyplot(fig2)
     fig_to_download(fig2, "efficiency_bucket_pie_chart.png")
 
-    # Boxplot with Quartiles (All Days)
-    st.subheader("📦 Boiler Efficiency Distribution")
-    st.markdown("This boxplot shows how boiler efficiency is distributed across all available days, along with quartiles.")
-
-    efficiency_data = fuel_df['Boiler_Efficiency'].dropna().values
-
-    q1 = np.percentile(efficiency_data, 25)
-    q2 = np.percentile(efficiency_data, 50)
-    q3 = np.percentile(efficiency_data, 75)
-
-    fig6, ax7 = plt.subplots(figsize=(6, 4))
-    sns.boxplot(y=efficiency_data, color='lightblue', ax=ax7)
     
-    # Annotate Quartiles
-    ax7.scatter(0, q1, color='blue', label=f"Q1: {q1:.2f}", zorder=5)
-    ax7.scatter(0, q2, color='green', label=f"Median (Q2): {q2:.2f}", zorder=5)
-    ax7.scatter(0, q3, color='red', label=f"Q3: {q3:.2f}", zorder=5)
-    ax7.legend(loc='upper right')
-    ax7.set_ylabel("Boiler Efficiency (%)")
-    ax7.set_xticks([])
-    
-    st.pyplot(fig6)
-    fig_to_download(fig6, "boiler_efficiency_boxplot_quartiles.png")
 
 
 
