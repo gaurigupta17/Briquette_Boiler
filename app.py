@@ -145,14 +145,7 @@ if fuel_file and param_file:
     st.pyplot(fig1)
     fig_to_download(fig1, "boiler_efficiency_over_time.png")
 
-    # Pie Chart
-    st.subheader("📊 Efficiency Bucket Breakdown")
-    st.markdown("Pie chart showing how many days fall into each efficiency category.")
-    fig2, ax2 = plt.subplots(figsize=(6, 4))
-    fuel_df['Efficiency_Bucket'].value_counts().plot.pie(autopct='%1.1f%%', startangle=90, colors=sns.color_palette('Set2'), ax=ax2)
-    ax2.set_ylabel("")
-    st.pyplot(fig2)
-    fig_to_download(fig2, "efficiency_bucket_pie_chart.png")
+ 
 
     
 
@@ -203,14 +196,14 @@ if fuel_file and param_file:
     # Averages Table
     st.subheader("📐 Parameter Averages by Efficiency")
     st.markdown("This table helps compare boiler parameters across different efficiency levels.")
-    mean_table = merged_df.groupby('Efficiency_Bucket').mean(numeric_only=True).round(2)
+    mean_table = merged_df.groupby('Efficiency_Level').mean(numeric_only=True).round(2)
     st.dataframe(mean_table)
     st.download_button("⬇️ Download Averages Table (CSV)", mean_table.to_csv(), file_name="parameter_averages.csv", mime="text/csv")
 
     # Efficiency Status Table
     st.subheader("📅 Daily Efficiency Buckets")
     st.markdown("Shows which efficiency range each day belongs to.")
-    status_table = fuel_df[['Date', 'Boiler_Efficiency', 'Efficiency_Bucket']]
+    status_table = fuel_df[['Date', 'Boiler_Efficiency', 'Efficiency_Level']]
     st.dataframe(status_table)
     st.download_button("⬇️ Download Efficiency Status (CSV)", status_table.to_csv(index=False), file_name="efficiency_status.csv", mime="text/csv")
 
