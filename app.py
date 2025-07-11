@@ -95,6 +95,32 @@ if fuel_file and param_file:
     st.pyplot(fig2)
     fig_to_download(fig2, "efficiency_bucket_pie_chart.png")
 
+    # Boxplot with Quartiles (All Days)
+    st.subheader("📦 Boiler Efficiency Distribution")
+    st.markdown("This boxplot shows how boiler efficiency is distributed across all available days, along with quartiles.")
+
+    efficiency_data = fuel_df['Boiler_Efficiency'].dropna().values
+
+    q1 = np.percentile(efficiency_data, 25)
+    q2 = np.percentile(efficiency_data, 50)
+    q3 = np.percentile(efficiency_data, 75)
+
+    fig6, ax7 = plt.subplots(figsize=(6, 4))
+    sns.boxplot(y=efficiency_data, color='lightblue', ax=ax7)
+    
+    # Annotate Quartiles
+    ax7.scatter(0, q1, color='blue', label=f"Q1: {q1:.2f}", zorder=5)
+    ax7.scatter(0, q2, color='green', label=f"Median (Q2): {q2:.2f}", zorder=5)
+    ax7.scatter(0, q3, color='red', label=f"Q3: {q3:.2f}", zorder=5)
+    ax7.legend(loc='upper right')
+    ax7.set_ylabel("Boiler Efficiency (%)")
+    ax7.set_xticks([])
+    
+    st.pyplot(fig6)
+    fig_to_download(fig6, "boiler_efficiency_boxplot_quartiles.png")
+
+
+
     # Fuel vs Steam Line
     st.subheader("🪵 Fuel vs Steam Output (Line)")
     st.markdown("This plot compares daily steam generation and fuel used.")
