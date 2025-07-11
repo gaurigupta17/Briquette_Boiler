@@ -115,12 +115,12 @@ if fuel_file and param_file:
     fig_to_download(fig6, "boiler_efficiency_boxplot_quartiles.png")
     
     def categorize_efficiency(eff):
-    if eff < q1:
-        return "Low"
-    elif eff <= q3:
-        return "Medium"
-    else:
-        return "High"
+        if eff < q1:
+            return "Low"
+        elif eff <= q3:
+            return "Medium"
+        else:
+            return "High"
 
     fuel_df['Efficiency_Level'] = fuel_df['Boiler_Efficiency'].apply(categorize_efficiency)
 
