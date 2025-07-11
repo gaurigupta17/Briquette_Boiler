@@ -90,7 +90,7 @@ if fuel_file and param_file:
 
     # Define custom efficiency buckets based on quartiles
     quartile_bins = [0, q1, q2, q3, float('inf')]
-    quartile_labels = [f'Q1 (≤{q1:.2f})', f'Q2 ({q1:.2f}-{q2:.2f})', f'Q3 ({q2:.2f}-{q3:.2f})', f'Q4 (>{q3:.2f})']
+    quartile_labels = [f'Q1', f'Q2', f'Q3', f'Q4']
     fuel_df['Efficiency_Bucket'] = pd.cut(fuel_df['Boiler_Efficiency'], bins=quartile_bins, labels=quartile_labels, include_lowest=True)
 
 
