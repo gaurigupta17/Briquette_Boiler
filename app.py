@@ -97,9 +97,9 @@ if fuel_file and param_file:
     # Colored Barplot for Efficiency Bucket
     st.subheader("📊 Daily Efficiency Buckets")
     color_map = {
-        "Less than 68%": "red",
-        "Between 68% and 70%": "orange",
-        "More than 70%": "green"
+        "<68%": "red",
+        "68%-70%": "orange",
+        ">70%": "green"
     }
     colors = fuel_df['Efficiency_Bucket'].map(color_map).fillna("grey")
 
