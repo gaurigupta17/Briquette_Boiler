@@ -4,15 +4,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from io import BytesIO
-from fpdf import FPDF
 
 # Utility to convert plot to download button
 def fig_to_download(fig, filename):
     buf = BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight")
     st.download_button("⬇️ Download Plot", buf.getvalue(), file_name=filename, mime="image/png")
-
-
 
 # Streamlit config
 st.set_page_config(page_title="Boiler Dashboard", layout="wide")
@@ -64,148 +61,127 @@ if fuel_file and param_file:
     }, inplace=True)
 
     fuel_df['Date'] = pd.to_datetime(fuel_df['Date']).dt.date
-    param_df['Date'] = pd.to_datetime(param_df['Timestamp']).dt.date
     param_df['Timestamp'] = pd.to_datetime(param_df['Timestamp'])
     param_df = param_df[param_df['Timestamp'].dt.time.between(pd.to_datetime("07:00:00").time(), pd.to_datetime("19:00:00").time())]
+    param_df['Date'] = param_df['Timestamp'].dt.date
 
-    fuel_df['Boiler_Efficiency'] = (fuel_df['Steam_Generated_MT'] / fuel_df['Fuel_Consumed_MT']) * 17.5
+    # Calculate Boiler Efficiency using updated constants
+    fuel_df['Boiler_Efficiency'] = (fuel_df['Steam_Generated_MT'] * 610) / (fuel_df['Fuel_Consumed_MT'] * 3450) * 100
 
-    # Boxplot with Quartiles (All Days)
+    # Quartile Boxplot
     st.subheader("📦 Boiler Efficiency Distribution")
-    st.markdown("This boxplot shows how boiler efficiency is distributed across all available days, along with quartiles.")
-
     efficiency_data = fuel_df['Boiler_Efficiency'].dropna().values
-
     q1 = np.percentile(efficiency_data, 25)
-
     q3 = np.percentile(efficiency_data, 75)
+    fig_q, ax_q = plt.subplots(figsize=(6, 4))
+    sns.boxplot(y=efficiency_data, color='lightblue', ax=ax_q)
+    ax_q.scatter(0, q1, color='blue', label=f"Q1: {q1:.2f}", zorder=5)
+    ax_q.scatter(0, q3, color='red', label=f"Q3: {q3:.2f}", zorder=5)
+    ax_q.legend(loc='upper right')
+    ax_q.set_ylabel("Boiler Efficiency (%)")
+    ax_q.set_xticks([])
+    st.pyplot(fig_q)
+    fig_to_download(fig_q, "efficiency_quartiles_boxplot.png")
 
-    fig6, ax7 = plt.subplots(figsize=(6, 4))
-    sns.boxplot(y=efficiency_data, color='lightblue', ax=ax7)
-    
-    # Annotate Quartiles
-    ax7.scatter(0, q1, color='blue', label=f"Q1: {q1:.2f}", zorder=5)
-    
-    ax7.scatter(0, q3, color='red', label=f"Q3: {q3:.2f}", zorder=5)
-    ax7.legend(loc='upper right')
-    ax7.set_ylabel("Boiler Efficiency (%)")
-    ax7.set_xticks([])
-    
-    st.pyplot(fig6)
-    fig_to_download(fig6, "boiler_efficiency_boxplot_quartiles.png")
-    
-    def categorize_efficiency(eff):
-        if eff < q1:
-            return "Low"
-        elif eff <= q3:
-            return "Medium"
+    # Efficiency bucketing
+    def bucket_efficiency(eff):
+        if eff < 68:
+            return "Less than 68%"
+        elif eff <= 70:
+            return "Between 68% and 70%"
         else:
-            return "High"
+            return "More than 70%"
 
-    fuel_df['Efficiency_Level'] = fuel_df['Boiler_Efficiency'].apply(categorize_efficiency)
+    fuel_df['Efficiency_Bucket'] = fuel_df['Boiler_Efficiency'].apply(bucket_efficiency)
 
-    color_map = {"Low": "red", "Medium": "orange", "High": "green"}
-    colors = fuel_df['Efficiency_Level'].map(color_map)
-    
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.bar(fuel_df['Date'].astype(str), fuel_df['Boiler_Efficiency'], color=colors)
-    ax.set_title("Daily Efficiency Status by Bucket")
-    ax.set_ylabel("Efficiency (%)")
-    ax.tick_params(axis='x', rotation=45)
-    st.pyplot(fig)
-    fig_to_download(fig, "daily_efficiency_status.png")
+    # Colored Barplot for Efficiency Bucket
+    st.subheader("📊 Daily Efficiency Buckets")
+    color_map = {
+        "Less than 68%": "red",
+        "Between 68% and 70%": "orange",
+        "More than 70%": "green"
+    }
+    colors = fuel_df['Efficiency_Bucket'].map(color_map)
+    fig_bar, ax_bar = plt.subplots(figsize=(10, 4))
+    ax_bar.bar(fuel_df['Date'].astype(str), fuel_df['Boiler_Efficiency'], color=colors)
+    ax_bar.set_ylabel("Efficiency (%)")
+    ax_bar.tick_params(axis='x', rotation=45)
+    st.pyplot(fig_bar)
+    fig_to_download(fig_bar, "daily_efficiency_buckets_colored.png")
 
-    merged_df = pd.merge(param_df, fuel_df[['Date', 'Efficiency_Level']], on='Date', how='left')
+    # Merge with parameters
+    merged_df = pd.merge(param_df, fuel_df[['Date', 'Efficiency_Bucket']], on='Date', how='left')
 
-    numeric_columns = merged_df.select_dtypes(include=[np.number]).columns.difference(['Date'])
-    
-    for col in numeric_columns:
-        fig, ax = plt.subplots(figsize=(6, 4))
-        sns.boxplot(x='Efficiency_Level', y=col, data=merged_df, palette=color_map)
-        ax.set_title(f"{col} by Efficiency Level")
-        st.pyplot(fig)
-        fig_to_download(fig, f"{col}_boxplot.png")
-    
-        
+    # Parameter-wise Boxplots (New Buckets)
+    st.subheader("📦 Parameter Variation by Efficiency Bucket")
+    numeric_cols = merged_df.select_dtypes(include=np.number).columns.difference(['Date'])
+    for col in numeric_cols:
+        fig_b, ax_b = plt.subplots(figsize=(5, 3))
+        sns.boxplot(data=merged_df, x='Efficiency_Bucket', y=col, palette=color_map, ax=ax_b)
+        ax_b.set_title(f"{col}")
+        st.pyplot(fig_b)
+        fig_to_download(fig_b, f"{col}_efficiency_bucket_boxplot.png")
 
- 
-    # Fuel Table
-    st.subheader("📘 Fuel & Parameter Data Preview")
-    st.markdown("This table shows all values of steam generation and fuel consumed, day-wise.")
-    st.dataframe(fuel_df)
-    st.download_button("⬇️ Download Fuel Data (CSV)", fuel_df.to_csv(index=False), file_name="fuel_data.csv", mime="text/csv")
-
-    # Efficiency over time
+    # Efficiency Trend
     st.subheader("📈 Boiler Efficiency Over Time")
-    st.markdown("This line chart shows how boiler efficiency has changed daily.")
-    fig1, ax1 = plt.subplots(figsize=(8, 4))
-    sns.lineplot(x='Date', y='Boiler_Efficiency', data=fuel_df, marker='o', ax=ax1)
-    ax1.set_ylabel("Efficiency (%)")
-    ax1.tick_params(axis='x', rotation=45)
-    st.pyplot(fig1)
-    fig_to_download(fig1, "boiler_efficiency_over_time.png")
+    fig_trend, ax_trend = plt.subplots(figsize=(8, 4))
+    sns.lineplot(data=fuel_df, x='Date', y='Boiler_Efficiency', marker='o', ax=ax_trend)
+    ax_trend.set_ylabel("Efficiency (%)")
+    ax_trend.tick_params(axis='x', rotation=45)
+    st.pyplot(fig_trend)
+    fig_to_download(fig_trend, "efficiency_over_time.png")
 
- 
-
-    
-
-
-
-    # Fuel vs Steam Line
-    st.subheader("🪵 Fuel vs Steam Output (Line)")
-    st.markdown("This plot compares daily steam generation and fuel used.")
-    fig3, ax3 = plt.subplots(figsize=(8, 4))
-    ax3.plot(fuel_df['Date'], fuel_df['Steam_Generated_MT'], color='tab:blue', label='Steam Generated')
-    ax3.set_ylabel("Steam (MT)", color='tab:blue')
-    ax3.tick_params(axis='y', labelcolor='tab:blue')
-    ax4 = ax3.twinx()
-    ax4.plot(fuel_df['Date'], fuel_df['Fuel_Consumed_MT'], color='tab:orange', label='Fuel Consumed')
-    ax4.set_ylabel("Fuel (MT)", color='tab:orange')
-    ax4.tick_params(axis='y', labelcolor='tab:orange')
-    ax3.tick_params(axis='x', rotation=45)
-    fig3.tight_layout()
-    st.pyplot(fig3)
-    fig_to_download(fig3, "fuel_vs_steam_line_chart.png")
-
-    # Fuel vs Steam Bar
-    st.subheader("📦 Fuel vs Steam Output (Grouped Bar)")
-    st.markdown("A grouped bar chart to show daily steam output vs fuel used side-by-side.")
-    fig4, ax5 = plt.subplots(figsize=(8, 4))
-    width = 0.4
-    x = np.arange(len(fuel_df['Date']))
-    ax5.bar(x - width/2, fuel_df['Steam_Generated_MT'], width, label='Steam')
-    ax5.bar(x + width/2, fuel_df['Fuel_Consumed_MT'], width, label='Fuel')
-    ax5.set_xticks(x)
-    ax5.set_xticklabels(fuel_df['Date'], rotation=45)
-    ax5.set_ylabel("MT")
-    ax5.legend()
-    st.pyplot(fig4)
-    fig_to_download(fig4, "fuel_vs_steam_bar_chart.png")
-
-    # O2 Simple Bar
+    # O2 Levels
     st.subheader("🫧 Daily Average Oxygen Level")
-    st.markdown("O₂ analyser readings shown day-wise.")
     avg_o2 = merged_df.groupby('Date')['O2_Analyser'].mean().reset_index()
-    fig5, ax6 = plt.subplots(figsize=(8, 4))
-    sns.barplot(x='Date', y='O2_Analyser', data=avg_o2, palette='Blues_d', ax=ax6)
-    ax6.set_ylabel("O2 Level (%)")
-    ax6.tick_params(axis='x', rotation=45)
-    st.pyplot(fig5)
-    fig_to_download(fig5, "oxygen_level_bar_chart.png")
+    fig_o2, ax_o2 = plt.subplots(figsize=(8, 4))
+    sns.barplot(data=avg_o2, x='Date', y='O2_Analyser', palette='Blues_d', ax=ax_o2)
+    ax_o2.set_ylabel("O2 Level (%)")
+    ax_o2.tick_params(axis='x', rotation=45)
+    st.pyplot(fig_o2)
+    fig_to_download(fig_o2, "oxygen_level_bar_chart.png")
 
-    # Averages Table
+    # Steam vs Fuel - Line
+    st.subheader("🪵 Steam vs Fuel (Line Chart)")
+    fig_sf, ax_sf = plt.subplots(figsize=(8, 4))
+    ax_sf.plot(fuel_df['Date'], fuel_df['Steam_Generated_MT'], label='Steam Generated', color='blue')
+    ax_sf.set_ylabel("Steam (MT)", color='blue')
+    ax_sf.tick_params(axis='y', labelcolor='blue')
+    ax2 = ax_sf.twinx()
+    ax2.plot(fuel_df['Date'], fuel_df['Fuel_Consumed_MT'], label='Fuel Consumed', color='orange')
+    ax2.set_ylabel("Fuel (MT)", color='orange')
+    ax_sf.tick_params(axis='x', rotation=45)
+    st.pyplot(fig_sf)
+    fig_to_download(fig_sf, "steam_vs_fuel_line.png")
+
+    # Steam vs Fuel - Grouped Bar
+    st.subheader("📦 Steam vs Fuel (Bar Chart)")
+    fig_gb, ax_gb = plt.subplots(figsize=(8, 4))
+    x = np.arange(len(fuel_df))
+    width = 0.4
+    ax_gb.bar(x - width/2, fuel_df['Steam_Generated_MT'], width, label='Steam')
+    ax_gb.bar(x + width/2, fuel_df['Fuel_Consumed_MT'], width, label='Fuel')
+    ax_gb.set_xticks(x)
+    ax_gb.set_xticklabels(fuel_df['Date'], rotation=45)
+    ax_gb.set_ylabel("MT")
+    ax_gb.legend()
+    st.pyplot(fig_gb)
+    fig_to_download(fig_gb, "steam_vs_fuel_bar.png")
+
+    # Data Tables
+    st.subheader("📘 Fuel Data Table")
+    st.dataframe(fuel_df)
+    st.download_button("⬇️ Download Fuel Data", fuel_df.to_csv(index=False), "fuel_data.csv")
+
     st.subheader("📐 Parameter Averages by Efficiency")
-    st.markdown("This table helps compare boiler parameters across different efficiency levels.")
-    mean_table = merged_df.groupby('Efficiency_Level').mean(numeric_only=True).round(2)
-    st.dataframe(mean_table)
-    st.download_button("⬇️ Download Averages Table (CSV)", mean_table.to_csv(), file_name="parameter_averages.csv", mime="text/csv")
+    avg_table = merged_df.groupby('Efficiency_Bucket').mean(numeric_only=True).round(2)
+    st.dataframe(avg_table)
+    st.download_button("⬇️ Download Parameter Averages", avg_table.to_csv(), "parameter_averages.csv")
 
-    # Efficiency Status Table
-    st.subheader("📅 Daily Efficiency Buckets")
-    st.markdown("Shows which efficiency range each day belongs to.")
-    status_table = fuel_df[['Date', 'Boiler_Efficiency', 'Efficiency_Level']]
+    st.subheader("📅 Daily Efficiency Status")
+    status_table = fuel_df[['Date', 'Boiler_Efficiency', 'Efficiency_Bucket']]
     st.dataframe(status_table)
-    st.download_button("⬇️ Download Efficiency Status (CSV)", status_table.to_csv(index=False), file_name="efficiency_status.csv", mime="text/csv")
+    st.download_button("⬇️ Download Efficiency Status", status_table.to_csv(index=False), "efficiency_status.csv")
 
 else:
     st.info("Upload both Excel files to begin analysis.")
