@@ -101,7 +101,8 @@ if fuel_file and param_file:
         "Between 68% and 70%": "orange",
         "More than 70%": "green"
     }
-    colors = fuel_df['Efficiency_Bucket'].map(color_map)
+    colors = fuel_df['Efficiency_Bucket'].map(color_map).fillna("grey")
+
     fig_bar, ax_bar = plt.subplots(figsize=(10, 4))
     ax_bar.bar(fuel_df['Date'].astype(str), fuel_df['Boiler_Efficiency'], color=colors)
     ax_bar.set_ylabel("Efficiency (%)")
