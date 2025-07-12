@@ -86,11 +86,11 @@ if fuel_file and param_file:
     # Efficiency bucketing
     def bucket_efficiency(eff):
         if eff < 68:
-            return "Less than 68%"
+            return "<68%"
         elif eff <= 70:
-            return "Between 68% and 70%"
+            return "68%-70%"
         else:
-            return "More than 70%"
+            return ">70%"
 
     fuel_df['Efficiency_Bucket'] = fuel_df['Boiler_Efficiency'].apply(bucket_efficiency)
 
