@@ -66,7 +66,7 @@ if fuel_file and param_file:
     param_df['Date'] = param_df['Timestamp'].dt.date
 
     # Calculate Boiler Efficiency using updated constants
-    fuel_df['Boiler_Efficiency'] = (fuel_df['Steam_Generated_MT'] * 610) / (fuel_df['Fuel_Consumed_MT'] * 3450) * 100
+    fuel_df['Boiler_Efficiency'] = (fuel_df['Steam_Generated_MT'] * 610) / (fuel_df['Fuel_Consumed_MT'] * 3600) * 100
 
     # Quartile Boxplot
     st.subheader("📦 Boiler Efficiency Distribution")
